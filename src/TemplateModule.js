@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Grid, Card, Statistic } from 'semantic-ui-react';
+import { Form, Input, Grid, Card, Statistic, Message } from 'semantic-ui-react';
 
 import { useSubstrate } from './substrate-lib';
 import { TxButton } from './substrate-lib/components';
 
-import { black2AsHex } from "@polkadot/util-crypto"
+import { blake2AsHex } from "@polkadot/util-crypto"
 
 export function Main(props) {
 
@@ -19,28 +19,30 @@ export function Main(props) {
   let fileReader;
 
   const bufferToDigest = () => {
-    const content = Array.from(new Uint8Array(fileReader.result)).map(b => b.toString(16).padStart(2, '0')).join();
-    const hash = black2AsHex(content, 256);
+    const content = Array.from(new Uint8Array(fileReader.result))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join();
+    const hash = blake2AsHex(content, 256);
     setDigest(hash);
   }
 
   // callback for when file is selected
-  const handleFileChoosen = () => {
-    const fileReader = new FileReader();
+  const handleFileChoosen = file => {
+    fileReader = new FileReader();
     fileReader.onloadend = bufferToDigest;
     fileReader.readAsArrayBuffer(file);
   }
 
   useEffect(() => {
     let unsubscribe;
-    api.query.TemplateModule.proofs(digest, result => {
+    api.query.templateModule.proofs(digest, result => {
       setOwner(result[0].toString());
       setBlock(result[1].toNumber());
     }).then(unsub => {
       unsubscribe = unsub;
     })
     return unsubscribe && unsubscribe
-  }, [Digest, api.query.templateModule])
+  }, [digest, api.query.templateModule])
 
   function isClaimed() {
     return block !== 0;
@@ -57,7 +59,7 @@ export function Main(props) {
             type="file"
             id="file"
             label="Your File"
-            onChange={e => handleFileChosen(e.target.files[0])}
+            onChange={e => handleFileChoosen(e.target.files[0])}
           />
           {/* Show this message if the file is available to be claimed */}
           <Message success header="File Digest Unclaimed" content={digest} />
@@ -107,6 +109,6 @@ export function Main(props) {
 }
 
 export default function TemplateModule(props) {
-  const { api } = useState();
-  return api.query.templateModule.proofs && api.query.templateModule.proofs ? (<Main />) : null;
+  const { api } = useSubstrate();   
+  return api.query.templateModule && api.query.templateModule.proofs ? (<Main {...props} />) : null;
 }
